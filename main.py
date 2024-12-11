@@ -22,7 +22,7 @@ class RecommendationInput(BaseModel):
 @app.post("/recommendations")
 async def generate_recommendation(data: RecommendationInput):
 
-    os.environ['GOOGLE_API_KEY'] = 'AIzaSyBw_k64YL5N0sZeXf_16fYszRjkLMj2hf4'
+    api_key = os.getenv("GOOGLE_API_KEY")
     # Example LLM prompt construction
     prompt = f"""
     Generate a personalized fitness and diet recommendation for a {data.age}-year-old {data.gender}, height {data.height}, 
@@ -31,7 +31,7 @@ async def generate_recommendation(data: RecommendationInput):
     Conditions: {', '.join(data.pre_existing_conditions)}. Diet: {', '.join(data.dietary_preferences)}.
     """
     # Call to LLM
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash-8b",temperature=0.7, top_p=0.85)
+    llm = ChatGoogleGenerativeAI(api_key=api_key,model="gemini-1.5-flash-8b",temperature=0.7, top_p=0.85)
     response = llm.invoke(prompt)
     return {"recommendation": response.content}
 
