@@ -1,7 +1,45 @@
+import os
 import streamlit as st
-import requests
+from langchain_google_genai import ChatGoogleGenerativeAI
 
-# Streamlit App Title
+# Set Google API Key
+
+
+if "GOOGLE_API_KEY" not in os.environ:
+        os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
+
+# Initialize LLM
+def initialize_llm():
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        st.error("Google API Key is not set.")
+        return None
+    return ChatGoogleGenerativeAI(
+        api_key=api_key,
+        model="gemini-1.5-flash-8b",
+        temperature=0.7,
+        top_p=0.85
+    )
+
+# Generate Recommendation
+def generate_recommendation(llm, payload):
+    prompt = f"""
+    Generate a personalized fitness and diet recommendation for a {payload['age']}-year-old {payload['gender']}, 
+    height {payload['height']} ft, weight {payload['weight']} lbs, based in {payload['location']}. 
+    Their fitness goal is {payload['fitness_goals']}.
+    Menstrual cycle details: {payload['menstrual_cycle_length']}-day cycle, 
+    {payload['average_period_duration']}-day duration, {payload['flow_intensity']} flow.
+    Conditions: {', '.join(payload['pre_existing_conditions'])}. 
+    Diet: {', '.join(payload['dietary_preferences'])}.
+    """
+    try:
+        response = llm.invoke(prompt)
+        return response.content
+    except Exception as e:
+        st.error(f"Error generating recommendation: {e}")
+        return None
+
+# Streamlit App
 st.title("Women's Fitness Recommendation Demo")
 
 # Input Form
@@ -36,31 +74,23 @@ with st.form("fitness_form"):
 
 # Handle Form Submission
 if submit_button:
-    # API Payload
-    payload = {
-        "age": age,
-        "gender": gender,
-        "height": height,
-        "weight": weight,
-        "menstrual_cycle_length": menstrual_cycle_length,
-        "average_period_duration": average_period_duration,
-        "flow_intensity": flow_intensity,
-        "pre_existing_conditions": pre_existing_conditions if pre_existing_conditions else ["none"],
-        "dietary_preferences": dietary_preferences if dietary_preferences else ["none"],
-        "fitness_goals": fitness_goals,
-        "location": location
-    }
-
-    # API Call
-    try:
-        api_url = "http://localhost:8000/recommendations"  # Replace with your API URL
-        response = requests.post(api_url, json=payload)
-        
-        if response.status_code == 200:
-            recommendation = response.json().get("recommendation", "No recommendation available.")
+    llm = initialize_llm()
+    if llm:
+        # Prepare Payload
+        payload = {
+            "age": age,
+            "gender": gender,
+            "height": height,
+            "weight": weight,
+            "menstrual_cycle_length": menstrual_cycle_length,
+            "average_period_duration": average_period_duration,
+            "flow_intensity": flow_intensity,
+            "pre_existing_conditions": pre_existing_conditions if pre_existing_conditions else ["none"],
+            "dietary_preferences": dietary_preferences if dietary_preferences else ["none"],
+            "fitness_goals": fitness_goals,
+            "location": location
+        }
+        recommendation = generate_recommendation(llm, payload)
+        if recommendation:
             st.success("Your Personalized Recommendation:")
             st.write(recommendation)
-        else:
-            st.error(f"Error: {response.status_code} - {response.text}")
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
